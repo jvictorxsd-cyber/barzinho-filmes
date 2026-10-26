@@ -1,5 +1,5 @@
 import {fileURLToPath} from 'node:url';
-import {resolve} from 'node:path';
+import {resolve,dirname} from 'node:path';
 import {existsSync} from 'node:fs';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
@@ -17,7 +17,7 @@ import {createMailer,publicWebOrigin,type Mailer} from './mail.js';
 import {registerImages} from './images.js';
 import {config} from './config.js';
 
-export async function buildApp(options:{db?:DB;logger?:boolean;mailer?:Mailer}={}) {
+export async function buildApp(options:{db?:DB;logger?:boolean;mailer?:Mailer;background?:(task:Promise<void>)=>void}={}) {
   const db=options.db||await createDb();
   const app=Fastify({logger:options.logger??true,bodyLimit:64*1024,trustProxy:false});
   await app.register(cookie);
@@ -32,7 +32,7 @@ export async function buildApp(options:{db?:DB;logger?:boolean;mailer?:Mailer}={
   });
   await registerAuth(app,db);
   const mailer=options.mailer||createMailer();
-  const drainMail=await registerAccountSecurity(app,db,mailer,publicWebOrigin());
+  const drainMail=await registerAccountSecurity(app,db,mailer,publicWebOrigin(),options.background);
   await registerCatalog(app,db);
   await registerImages(app);
   await registerTracking(app,db);
@@ -44,7 +44,7 @@ export async function buildApp(options:{db?:DB;logger?:boolean;mailer?:Mailer}={
 }
 const main=process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url);
 if(main) {
-  const envPath=resolve(fileURLToPath(new URL('../../../',import.meta.url)),'.env');
+  const envPath=resolve(dirname(fileURLToPath(import.meta.url)),'../../../.env');
   if(existsSync(envPath))process.loadEnvFile(envPath);
   // Config values are evaluated on startup, after optional local .env loading.
   config.origin=process.env.WEB_ORIGIN||config.origin;

@@ -11,7 +11,7 @@ type Purpose='reset_password'|'verify_email';
 const tokenSchema=z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 const genericResponse={ok:true,message:'Solicitação recebida. Se esse e-mail estiver cadastrado, confira sua caixa de entrada e spam.'};
 
-export async function registerAccountSecurity(app:FastifyInstance,db:DB,mailer:Mailer,webOrigin:string){
+export async function registerAccountSecurity(app:FastifyInstance,db:DB,mailer:Mailer,webOrigin:string,background?:(task:Promise<void>)=>void){
  const pendingDeliveries=new Set<Promise<void>>();
  function requireMail(){if(!mailer.available)problem('O envio de e-mails está indisponível no momento. Tente novamente mais tarde.',503)}
  async function issue(userId:string,email:string,purpose:Purpose){
@@ -49,6 +49,7 @@ export async function registerAccountSecurity(app:FastifyInstance,db:DB,mailer:M
    // Respond independently of SMTP latency, so delivery timing does not disclose account existence.
    const delivery=issue(user.id,user.email,'reset_password').catch(()=>{app.log.warn({event:'password_reset_delivery_failed'},'Solicitação de recuperação não entregue.');});
    pendingDeliveries.add(delivery);
+   background?.(delivery);
    void delivery.finally(()=>pendingDeliveries.delete(delivery));
   }
   reply.code(202);return genericResponse;

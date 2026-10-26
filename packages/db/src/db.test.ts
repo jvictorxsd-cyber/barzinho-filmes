@@ -33,12 +33,27 @@ test('migrations, persistence, uniqueness, watch prerequisites, and atomic rollb
     await db.close();
     db = await createDb({ dataDir });
     assert.equal((await db.query('SELECT * FROM users')).length, 1, 'data survives a fresh database instance');
-    assert.deepEqual((await db.query<{name:string}>('SELECT name FROM schema_migrations ORDER BY name')).map(row=>row.name), ['001_initial.sql','002_account_tokens.sql'], 'each migration is applied once');
+    assert.deepEqual((await db.query<{name:string}>('SELECT name FROM schema_migrations ORDER BY name')).map(row=>row.name), ['001_initial.sql','002_account_tokens.sql','003_private_api_tables.sql'], 'each migration is applied once');
     assert.equal((await db.query<{email_verified_at:string|null}>("SELECT email_verified_at FROM users WHERE id='u1'"))[0].email_verified_at,null);
   } finally {
     await db.close();
     await rm(dataDir, { recursive: true, force: true });
   }
+});
+
+test('direct browser database roles cannot read API-managed account tables',async()=>{
+ const db=await createDb({dataDir:':memory:'});
+ try{
+  await db.query('CREATE ROLE anon');
+  // Even if a hosting integration grants SELECT later, RLS remains a second barrier.
+  await db.query('GRANT USAGE ON SCHEMA public TO anon');
+  await db.query('GRANT SELECT ON users TO anon');
+  await db.query("INSERT INTO users(id,username,email,display_name,password_hash) VALUES('secret','secret_user','secret@example.invalid','Secret','hash')");
+  await db.query('SET ROLE anon');
+  assert.equal((await db.query('SELECT * FROM users')).length,0);
+  await db.query('RESET ROLE');
+  assert.equal((await db.query('SELECT * FROM users')).length,1);
+ }finally{await db.close()}
 });
 
 test('account security migration upgrades an existing database without changing users or their passwords',async()=>{

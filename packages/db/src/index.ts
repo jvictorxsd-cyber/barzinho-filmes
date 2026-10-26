@@ -1,6 +1,7 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { existsSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import postgres from 'postgres';
 
@@ -21,7 +22,17 @@ export interface DatabaseOptions {
   dataDir?: string;
 }
 
-const migrations = ['001_initial.sql', '002_account_tokens.sql'];
+const migrations = ['001_initial.sql', '002_account_tokens.sql', '003_private_api_tables.sql'];
+
+async function migrationSource(name:string) {
+  const roots = [process.env.DB_MIGRATIONS_DIR,
+    resolve(dirname(fileURLToPath(import.meta.url)), '../migrations'),
+    resolve(process.cwd(), 'packages/db/migrations'),
+    resolve(process.cwd(), '../../packages/db/migrations')].filter((root):root is string=>Boolean(root));
+  const path = roots.map(root=>resolve(root,name)).find(path=>existsSync(path));
+  if(!path) throw new Error(`Migração ausente no pacote de execução: ${name}`);
+  return readFile(path,'utf8');
+}
 
 async function migrate(db: QueryExecutor, executeBatch: (sql: string) => Promise<void>): Promise<void> {
   await db.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -30,7 +41,7 @@ async function migrate(db: QueryExecutor, executeBatch: (sql: string) => Promise
   for (const name of migrations) {
     const applied = await db.query('SELECT name FROM schema_migrations WHERE name = $1', [name]);
     if (applied.length) continue;
-    const source = await readFile(new URL(`../migrations/${name}`, import.meta.url), 'utf8');
+    const source = await migrationSource(name);
     await executeBatch(source);
     await db.query('INSERT INTO schema_migrations(name) VALUES ($1)', [name]);
   }
@@ -38,9 +49,9 @@ async function migrate(db: QueryExecutor, executeBatch: (sql: string) => Promise
 
 export async function createDb(options: DatabaseOptions = {}): Promise<DB> {
   // An explicit test/local directory must never accidentally target an injected production URL.
-  const url = options.url ?? (options.dataDir === undefined ? process.env.DATABASE_URL : undefined);
+  const url = options.url ?? (options.dataDir === undefined ? process.env.DATABASE_URL || process.env.POSTGRES_URL : undefined);
   if (url) {
-    const sql = postgres(url, { max: 10, idle_timeout: 20, connect_timeout: 15 });
+    const sql = postgres(url, { max: process.env.VERCEL ? 3 : 10, prepare:false, idle_timeout: 20, connect_timeout: 15 });
     const db: DB = {
       async query<T>(statement: string, params: unknown[] = []): Promise<T[]> {
         return Array.from(await sql.unsafe(statement, params as never[])) as T[];
@@ -74,7 +85,7 @@ export async function createDb(options: DatabaseOptions = {}): Promise<DB> {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('DATABASE_URL é obrigatória em produção. PGlite é destinado ao desenvolvimento local.');
   }
-  const dataDir = options.dataDir ?? process.env.DATA_DIR ?? fileURLToPath(new URL('../../../.data/barzinho', import.meta.url));
+  const dataDir = options.dataDir ?? process.env.DATA_DIR ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../../.data/barzinho');
   const memory = dataDir === ':memory:';
   if (!memory) await mkdir(resolve(dataDir), { recursive: true });
   const engine = new PGlite(memory ? undefined : resolve(dataDir));

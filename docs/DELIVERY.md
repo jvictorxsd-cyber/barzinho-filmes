@@ -72,3 +72,8 @@ Validação deste incremento: TypeScript nos cinco workspaces, 25 testes (20 API
 ## Preparação de deploy
 
 A configuração Vercel da Web usa `apps/web` como diretório do projeto. A API continua em um serviço Node separado com PostgreSQL. O build rejeita destino localhost na Vercel. Consulte [DEPLOY.md](DEPLOY.md) para as variáveis e a topologia. A suíte atual soma 28 testes: os 25 anteriores e 3 verificações da configuração de deploy. Configuração versionada e build local não comprovam uma publicação remota.
+
+
+## API integrada para publicação na Vercel
+
+O adaptador Next encaminha requisições à mesma API Fastify, preservando cookies, respostas binárias e validação. PostgreSQL/Supabase substitui o banco local na publicação. A migração 003 bloqueia acesso direto por papéis de navegador, preservando as tabelas e os usuários existentes. Os testes incluem leitura negada por RLS e configuração do modo integrado. Detalhes e variáveis em DEPLOY.md. SMTP e TMDB precisam de credenciais próprias na Vercel; a presença delas no ambiente de desenvolvimento não configura automaticamente o deployment.
