@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Barzinho",
+    "slug": "barzinho-filmes",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "barzinho",
+    "ios": {"supportsTablet": true},
+    "android": {"adaptiveIcon": {"backgroundColor": "#111211"}},
+    "plugins": ["expo-secure-store"]
+  }
+}

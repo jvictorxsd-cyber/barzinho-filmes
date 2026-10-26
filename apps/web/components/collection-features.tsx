@@ -1,0 +1,44 @@
+'use client';
+import Link from 'next/link';
+import {useRouter} from 'next/navigation';
+import {FormEvent,useEffect,useState} from 'react';
+import {Bookmark,Plus,Lock,Globe,Trash2,ArrowRight,Clapperboard,Sparkles} from 'lucide-react';
+import {request,useRemote} from '../lib/remote';
+
+type Props={user?:{id:string};notify:(message:string)=>void};
+type SavedList={id:string;name:string;private:boolean;itemCount?:number;ownerId?:string;ownerName?:string};
+type Title={id:string;externalId:number;mediaType:string;title:string;posterPath:string|null;reason?:string};
+function BusyError({resource}:{resource:{loading:boolean;error:string;reload:()=>void}}){return <>{resource.loading&&<p role="status">Carregando…</p>}{resource.error&&<p role="alert" className="form-error">{resource.error} <button className="text-link" onClick={resource.reload}>Tentar novamente</button></p>}</>}
+function Cover({title}:{title:Title}){return <Link href={`/titulo/${title.mediaType}/${title.externalId||title.id.split(':')[1]}`} className="collection-title"><div className="poster">{title.posterPath?<img loading="lazy" src={`/api/images/w342${title.posterPath}`} alt={title.title}/>:<div className="poster-placeholder"><Clapperboard/><span>Imagem indisponível</span></div>}</div><h3>{title.title}</h3></Link>}
+
+export function ListsPage({user,notify,id}:Props&{id?:string}){
+ const router=useRouter();const lists=useRemote<{items:SavedList[]}>(!id&&user?'/lists':null);
+ const detail=useRemote<{list:SavedList;items:Title[]}>(id?`/lists/${id}`:null);
+ const owner=!!user&&detail.data?.list.ownerId===user.id;
+ const library=useRemote<{items:Title[]}>(owner?'/library':null);
+ const[name,setName]=useState(''),[privateList,setPrivate]=useState(true),[selected,setSelected]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ useEffect(()=>{if(detail.data){setName(detail.data.list.name);setPrivate(detail.data.list.private)}},[detail.data]);
+ async function act(operation:()=>Promise<void>){setBusy(true);setError('');try{await operation()}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+ async function save(event:FormEvent){event.preventDefault();await act(async()=>{if(id){await request(`/lists/${id}`,'PATCH',{name,private:privateList});detail.reload();notify('Lista atualizada.')}else{const data=await request<{list:SavedList}>('/lists','POST',{name,private:privateList});router.push(`/listas/${data.list.id}`)}})}
+ const editableForm=<form onSubmit={save} className="list-form"><label htmlFor="list-name">Nome da lista</label><input id="list-name" required maxLength={100} value={name} placeholder="Histórias para uma noite de chuva" onChange={e=>setName(e.target.value)}/><label className="checkbox"><input type="checkbox" checked={privateList} onChange={e=>setPrivate(e.target.checked)}/>Lista privada</label><p>Listas públicas podem ser abertas pelo link. Se o seu perfil for privado, somente você poderá acessá-las.</p><button disabled={busy} className="button primary">{id?'Salvar lista':'Criar lista'}</button></form>;
+ return <div className="page-pad lists-page"><div className="page-heading"><div><p className="eyebrow">CURADORIA COM A SUA ASSINATURA</p><h1>{id?(detail.data?.list.name||'Sua seleção de histórias'):'Suas listas.'}</h1><p>{id?(detail.data?`Uma seleção de ${detail.data.list.ownerName}`:''): 'Reúna filmes e séries por tema, ocasião ou vontade.'}</p></div><Link href="/biblioteca" className="text-link">Minha biblioteca <ArrowRight size={15}/></Link></div>
+ {error&&<p role="alert" className="form-error">{error}</p>}
+ {!id?<>{user?<><details className="settings-panel"><summary><Plus size={18}/>Criar uma lista</summary>{editableForm}</details><BusyError resource={lists}/><div className="list-grid">{lists.data?.items.map(list=><Link className="list-tile" href={`/listas/${list.id}`} key={list.id}><Bookmark size={26}/><h2>{list.name}</h2><p>{list.itemCount||0} títulos</p><span>{list.private?<Lock size={13}/>:<Globe size={13}/>} {list.private?'Privada':'Pública'}</span></Link>)}</div>{lists.data&&!lists.data.items.length&&<p className="discussion-empty">Sua primeira seleção começa aqui. Crie uma lista e acrescente títulos do catálogo ou da sua biblioteca.</p>}</>:<p><Link href="/entrar" className="button primary">Entrar para criar listas</Link></p>}</>:<><Link href="/listas" className="text-link">← Minhas listas</Link><BusyError resource={detail}/>
+ {detail.data&&<><div className="list-actions"><span className="muted">{detail.data.list.private?'Lista privada':'Lista pública'} · {detail.data.items.length} títulos</span>{owner&&<><button className="button secondary" onClick={()=>navigator.clipboard.writeText(window.location.href).then(()=>notify('Link copiado. Listas privadas continuam acessíveis apenas por você.')).catch(()=>notify('Não foi possível copiar o link.'))}>Copiar link</button><button disabled={busy} className="button danger" onClick={()=>{if(window.confirm('Excluir esta lista? Seu histórico e sua biblioteca serão preservados.'))void act(async()=>{await request(`/lists/${id}`,'DELETE');router.push('/listas');notify('Lista excluída.')})}}><Trash2 size={15}/>Excluir lista</button></>}</div>
+ {owner&&<><details className="settings-panel"><summary>Editar nome e privacidade</summary>{editableForm}</details><form className="add-to-list-form" onSubmit={e=>{e.preventDefault();void act(async()=>{await request(`/lists/${id}/items`,'PUT',{titleId:selected});setSelected('');detail.reload();notify('Título adicionado à lista.')})}}><label htmlFor="list-library">Adicionar da minha biblioteca</label><select id="list-library" required value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Escolha um título</option>{library.data?.items.filter(t=>!detail.data!.items.some(i=>i.id===t.id)).map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select><button className="button secondary" disabled={busy||!selected}>Adicionar título</button><Link href="/explorar" className="text-link">Encontrar outros títulos</Link></form><BusyError resource={library}/></>}
+ <div className="catalog-grid list-content">{detail.data.items.map(t=><div key={t.id}><Cover title={t}/>{owner&&<button disabled={busy} className="text-link remove-list-item" onClick={()=>act(async()=>{await request(`/lists/${id}/items/${encodeURIComponent(t.id)}`,'DELETE');detail.reload();notify('Título removido da lista.')})}>Remover da lista</button>}</div>)}</div>{!detail.data.items.length&&<p className="discussion-empty">Essa seleção ainda está começando.{owner?' Adicione títulos pela biblioteca ou pelo botão de listas na página de um filme ou série.':''}</p>}</>}
+ </>}
+ </div>;
+}
+
+export function AddToList({user,notify,titleId}:Props&{titleId:string}){
+ const[open,setOpen]=useState(false),[selected,setSelected]=useState(''),[busy,setBusy]=useState(false);
+ const lists=useRemote<{items:SavedList[]}>(open&&user?'/lists':null);
+ return <details className="add-list-panel" onToggle={e=>setOpen(e.currentTarget.open)}><summary><Bookmark size={16}/> Adicionar a uma lista</summary>{!user?<Link href="/entrar" className="text-link">Entre para organizar suas listas</Link>:<><BusyError resource={lists}/>{lists.data?.items.length?<form className="add-to-list-form" onSubmit={async e=>{e.preventDefault();setBusy(true);try{await request(`/lists/${selected}/items`,'PUT',{titleId});notify('Título salvo na lista.')}catch(e){notify((e as Error).message)}finally{setBusy(false)}}}><label className="sr-only" htmlFor={`title-list-${titleId}`}>Escolher lista</label><select id={`title-list-${titleId}`} required value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Escolha sua lista</option>{lists.data.items.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select><button disabled={busy||!selected} className="button secondary">Salvar na lista</button></form>:lists.data&&<p>Crie sua primeira lista para guardar esta história.</p>}<Link href="/listas" className="text-link">Criar e gerenciar listas <ArrowRight size={14}/></Link></>}</details>;
+}
+
+export function Recommendations({user}:Pick<Props,'user'>){
+ const r=useRemote<{items:Title[];mode:string}>(user?'/recommendations':null);
+ if(!user)return null;
+ return <section className="section"><div className="section-heading"><div><p className="eyebrow">DESCOBERTAS COM A SUA CARA</p><h2>{r.data?.mode==='personalized'?'Recomendados para você':'Descubra algo novo'}</h2></div><Sparkles size={19}/></div><BusyError resource={r}/>{r.data?.items.length?<div className="recommendation-row">{r.data.items.map(t=><div key={t.id}><Cover title={t}/><p className="recommendation-reason">{t.reason}</p></div>)}</div>:r.data&&<p className="discussion-empty">Explore o catálogo e registre suas impressões. As próximas sugestões considerarão seus gêneros, notas e favoritos, entre os títulos disponíveis.</p>}</section>;
+}
