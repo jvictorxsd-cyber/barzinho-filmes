@@ -12,6 +12,12 @@ Configure `TMDB_TOKEN` como segredo de Production na Vercel para carregar o cat�
 
 O limite de corpo da API é 64 KiB. Imagens oficiais são binárias e preservadas pelo adaptador. As migrações SQL são incluídas no pacote da função. Rate limiting e cache em memória são por instância; esta publicação não comprova capacidade para milhares de usuários.
 
+### Compatibilidade do runtime
+
+O runtime Node da Vercel pode desabilitar `require(ESM)`. `light-my-request` 6.8 usa `require()` para carregar `cookie` 2 (ESM), causando erro 503 em todas as rotas da API mesmo após um build bem-sucedido. O monorepositório fixa `light-my-request` 6.6.0, que usa a interface CommonJS de cookies. Fastify está declarado também na raiz para que o override seja aplicado à árvore compartilhada dos workspaces. Preserve o lockfile e execute `npm ci`.
+
+`apps/api/test/runtime.test.ts` inicia um processo com `--no-experimental-require-module` e verifica criação e leitura do cookie de sessão pelo mesmo mecanismo de requisições usado pelo adaptador. Após o deploy, valide `/api/health`, catálogo e login no domínio público; o estado READY da Vercel só confirma a publicação do build.
+
 ## API em serviço separado (alternativa)
 
 No provedor escolhido para o serviço Node, use o repositório completo, instale com `npm ci` e inicie com `npm run start -w @barzinho/api`. Use Node 22.13 ou superior. Configure:

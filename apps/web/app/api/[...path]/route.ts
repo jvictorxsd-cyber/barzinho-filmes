@@ -1,11 +1,12 @@
 import {after} from 'next/server';
 import {isIP} from 'node:net';
 import {buildApp} from '../../../../api/src/index';
-import type {FastifyInstance,HTTPMethods} from 'fastify';
+import type {FastifyInstance} from 'fastify';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export const maxDuration=60;
+type ApiMethod='GET'|'HEAD'|'POST'|'PUT'|'PATCH'|'DELETE'|'OPTIONS';
 let application:Promise<FastifyInstance>|undefined;
 function getApp() {
   if(!application) {
@@ -35,7 +36,7 @@ async function handle(request:Request) {
   const forwarded=process.env.VERCEL ? (request.headers.get('x-vercel-forwarded-for')??request.headers.get('x-forwarded-for'))?.split(',')[0]?.trim() : undefined;
   try {
     const app=await getApp();
-    const response=await app.inject({method:request.method as HTTPMethods,url:url.pathname+url.search,headers,payload,remoteAddress:forwarded&&isIP(forwarded)?forwarded:'127.0.0.1'});
+    const response=await app.inject({method:request.method as ApiMethod,url:url.pathname+url.search,headers,payload,remoteAddress:forwarded&&isIP(forwarded)?forwarded:'127.0.0.1'});
     const outgoing=new Headers();
     for(const [name,value] of Object.entries(response.headers)) {
       if(value===undefined || ['transfer-encoding','connection','content-length'].includes(name)) continue;

@@ -9,6 +9,9 @@
   "engines": {
     "node": ">=22.13.0"
   },
+  "overrides": {
+    "light-my-request": "6.6.0"
+  },
   "scripts": {
     "dev": "concurrently -k -n api,web \"npm run dev -w @barzinho/api\" \"npm run dev -w @barzinho/web\"",
     "dev:mobile": "npm run dev -w @barzinho/mobile",
@@ -22,10 +25,13 @@
     "start:local": "node scripts/local.mjs --built"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
-    "typescript": "^5.9.3",
-    "tsx": "^4.21.0",
+    "@playwright/test": "^1.58.2",
     "@types/node": "^24.10.0",
-    "@playwright/test": "^1.58.2"
+    "concurrently": "^9.2.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "fastify": "5.12.7"
   }
 }
