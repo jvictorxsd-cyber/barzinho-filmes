@@ -28,8 +28,10 @@ export function createTmdbClient(db: CatalogDatabase, request: typeof fetch = pr
     const existing = inflight.get(key);
     if (existing) return existing;
     const operation = (async () => {
-      const [cached] = await db.query<{ data: Raw; updated_at: Date | string }>(
+      const [stored] = await db.query<{ data: Raw; updated_at: Date | string }>(
         'SELECT data, updated_at FROM catalog_cache WHERE cache_key = $1', [key]);
+      // Recover cache entries written as JSON strings by an older PostgreSQL adapter.
+      const cached=stored && stored.data && typeof stored.data==='object' && !Array.isArray(stored.data)?stored:undefined;
       const age = cached ? Date.now() - new Date(cached.updated_at).getTime() : Infinity;
       if (cached && age < TTL) return { data: cached.data, stale: false };
       if (!catalogConfigured()) {

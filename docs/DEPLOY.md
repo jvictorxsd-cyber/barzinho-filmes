@@ -18,6 +18,10 @@ O runtime Node da Vercel pode desabilitar `require(ESM)`. `light-my-request` 6.8
 
 `apps/api/test/runtime.test.ts` inicia um processo com `--no-experimental-require-module` e verifica criação e leitura do cookie de sessão pelo mesmo mecanismo de requisições usado pelo adaptador. Após o deploy, valide `/api/health`, catálogo e login no domínio público; o estado READY da Vercel só confirma a publicação do build.
 
+O adaptador PostgreSQL preserva parâmetros JSON já serializados, conforme o contrato usado pelo PGlite. Sem esse ajuste, Postgres.js codifica a string novamente e o catálogo recebe um escalar no lugar de um objeto/array. Entradas antigas de cache com esse formato são ignoradas e substituídas por novas respostas do TMDB. Não é necessário apagar contas ou histórico.
+
+Para validar contra PostgreSQL real, configure `POSTGRES_TEST_URL` apontando a um banco exclusivo de testes e execute `npm run test:postgres -w @barzinho/db`. Esse teste verifica objetos, expansão de arrays e transações; ele não é executado contra bancos de produção.
+
 ## API em serviço separado (alternativa)
 
 No provedor escolhido para o serviço Node, use o repositório completo, instale com `npm ci` e inicie com `npm run start -w @barzinho/api`. Use Node 22.13 ou superior. Configure:

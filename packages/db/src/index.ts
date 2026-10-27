@@ -51,7 +51,12 @@ export async function createDb(options: DatabaseOptions = {}): Promise<DB> {
   // An explicit test/local directory must never accidentally target an injected production URL.
   const url = options.url ?? (options.dataDir === undefined ? process.env.DATABASE_URL || process.env.POSTGRES_URL : undefined);
   if (url) {
-    const sql = postgres(url, { max: process.env.VERCEL ? 3 : 10, prepare:false, idle_timeout: 20, connect_timeout: 15 });
+    const sql = postgres(url, {
+      max: process.env.VERCEL ? 3 : 10, prepare:false, idle_timeout:20, connect_timeout:15,
+      // DB.query accepts encoded JSON strings, just like PGlite. Postgres.js otherwise
+      // stringifies these strings again when PostgreSQL infers a JSON/JSONB parameter.
+      types:{json:{to:114,from:[114,3802],serialize:(value:unknown)=>typeof value==='string'?value:JSON.stringify(value),parse:JSON.parse}},
+    });
     const db: DB = {
       async query<T>(statement: string, params: unknown[] = []): Promise<T[]> {
         return Array.from(await sql.unsafe(statement, params as never[])) as T[];

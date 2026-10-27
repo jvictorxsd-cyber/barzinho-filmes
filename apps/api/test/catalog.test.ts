@@ -51,6 +51,19 @@ test('bounded stale cache survives upstream outage and marks its provenance', as
   await assert.rejects(client('/movie/440011'), (err: unknown) => err instanceof CatalogError && err.code === 'CATALOG_UNAVAILABLE');
 });
 
+test('malformed scalar cache entries are replaced by genuine source objects',async()=>{
+ process.env.TMDB_TOKEN='test-server-secret';
+ const key='/movie/774411?language=pt-BR';
+ await db.query('INSERT INTO catalog_cache(cache_key,data) VALUES($1,$2::jsonb)',[key,JSON.stringify(JSON.stringify({id:774411,title:'Old malformed cache'}))]);
+ let requests=0;
+ const client=createTmdbClient(db,(async()=>{requests++;return new Response(JSON.stringify({id:774411,title:'Source fixture'}),{status:200});}) as typeof fetch);
+ assert.equal((await client('/movie/774411')).data.title,'Source fixture');
+ assert.equal((await client('/movie/774411')).data.title,'Source fixture');
+ assert.equal(requests,1);
+ const [row]=await db.query<{kind:string}>('SELECT jsonb_typeof(data) AS kind FROM catalog_cache WHERE cache_key=$1',[key]);
+ assert.equal(row.kind,'object');
+});
+
 test('an upstream removal is respected instead of serving a stale removed title', async () => {
   await db.query("UPDATE catalog_cache SET updated_at=NOW()-interval '12 hours' WHERE cache_key=$1", ['/movie/440011?language=pt-BR']);
   const client = createTmdbClient(db, (async () => new Response('{}', { status: 404 })) as typeof fetch);
