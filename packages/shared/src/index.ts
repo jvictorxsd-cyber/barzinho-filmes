@@ -51,6 +51,7 @@ export interface ApiClientOptions {
   baseUrl: string;
   getToken?: () => Promise<string | null> | string | null;
   fetcher?: typeof fetch;
+  credentials?: RequestCredentials;
 }
 /** Shared browser/native HTTP client. Credentials remain in caller-provided secure storage. */
 export function createApiClient(options: ApiClientOptions) {
@@ -63,13 +64,18 @@ export function createApiClient(options: ApiClientOptions) {
     if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
     if (token) headers.set('Authorization', `Bearer ${token}`);
     let response: Response;
+    // React Native's AbortSignal polyfill has no static timeout() method.
+    const controller = init.signal ? null : new AbortController();
+    const timeout = controller ? setTimeout(() => controller.abort(), 20000) : null;
     try {
       response = await (options.fetcher ?? fetch)(`${baseUrl}${path}`, {
-        ...init, headers, credentials: 'include', signal: init.signal ?? AbortSignal.timeout(20000),
+        ...init, headers, credentials: options.credentials ?? 'include', signal: init.signal ?? controller!.signal,
       });
     } catch (error) {
       if (init.signal?.aborted) throw error;
       throw new ApiError(0, 'NETWORK_ERROR', 'Não foi possível conectar. Confira sua conexão e tente novamente.');
+    } finally {
+      if (timeout !== null) clearTimeout(timeout);
     }
     const body = await response.json().catch(() => ({})) as Record<string, unknown>;
     if (!response.ok) {

@@ -5,11 +5,12 @@
   "main": "index.ts",
   "scripts": {
     "dev": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
-    "export": "expo export --platform android --platform ios"
+    "export": "expo export --platform android --platform ios",
+    "build:apk": "bash scripts/build-apk.sh"
   },
   "dependencies": {
     "@barzinho/shared": "*",
@@ -20,5 +21,8 @@
     "react-native": "0.83.2",
     "react-native-safe-area-context": "~5.6.2"
   },
-  "devDependencies": {"@types/react": "~19.2.0", "typescript": "^5.9.3"}
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "typescript": "^5.9.3"
+  }
 }

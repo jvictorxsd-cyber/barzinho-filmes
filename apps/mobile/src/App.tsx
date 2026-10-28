@@ -9,13 +9,13 @@ import {createMovieDiary} from './movie-diary';
 
 const SESSION_KEY = 'barzinho.session';
 const THEME_KEY = 'barzinho.theme';
-const api = createApiClient({baseUrl: process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000', getToken: () => SecureStore.getItemAsync(SESSION_KEY)});
+const api = createApiClient({baseUrl: process.env.EXPO_PUBLIC_API_URL ?? 'https://barzinho-filmes.vercel.app', credentials: 'omit', getToken: () => SecureStore.getItemAsync(SESSION_KEY)});
 const tabs = ['Início', 'Explorar', 'Calendário', 'Atividades', 'Perfil'] as const;
 type Tab = typeof tabs[number];
 type Activity = {id: string; type?: string; title?: string; createdAt?: string; created_at?: string; data?: Record<string, unknown>};
 type Profile = {user: User; stats: Record<string, number>; activity: Activity[]; achievements: {code: string; name: string; description: string; earnedAt?: string; progress?: number; goal?: number}[]};
-const dark = {bg:'#10120f',surface:'#191c17',line:'#30352c',text:'#f5f1e8',muted:'#a6ad9e',accent:'#e9b76c',ink:'#171b12'};
-const light = {bg:'#f5f2ea',surface:'#fffdf7',line:'#ded9ce',text:'#1c241a',muted:'#66715e',accent:'#9b5b18',ink:'#fffaf2'};
+const dark = {bg:'#0c0d10',surface:'#17191e',line:'#2b2e37',text:'#f8f9fc',muted:'#a4a9b6',accent:'#ffe234',ink:'#111318'};
+const light = {bg:'#f4f5f8',surface:'#ffffff',line:'#d9dce5',text:'#171921',muted:'#5e6474',accent:'#ffe234',ink:'#111318'};
 const dateLabel = (date: string | null | undefined) => date ? new Date(date.length === 10 ? `${date}T12:00:00` : date).toLocaleDateString('pt-BR') : 'Data não informada';
 
 export default function App() { return <SafeAreaProvider><Barzinho /></SafeAreaProvider>; }

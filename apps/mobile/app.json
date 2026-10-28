@@ -6,8 +6,29 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "scheme": "barzinho",
-    "ios": {"supportsTablet": true},
-    "android": {"adaptiveIcon": {"backgroundColor": "#111211"}},
-    "plugins": ["expo-secure-store"]
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#111211",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "package": "com.barzinhofilmes.app",
+      "versionCode": 1,
+      "permissions": [],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "./plugins/with-release-signing.cjs",
+      "./plugins/with-gradle-version.cjs"
+    ],
+    "icon": "./assets/icon.png"
   }
 }
